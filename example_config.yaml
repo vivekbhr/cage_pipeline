@@ -1,0 +1,47 @@
+# data
+indir: /data/akhtar/sequencing_data/180412_J00182_0077_AHV23YBBXX_lanes1_4/Project_370_Semplicio_Akhtar/Sample_18L005768
+sample: Sample_18L005768
+
+R1_path: /data/akhtar/sequencing_data/180412_J00182_0077_AHV23YBBXX_lanes1_4/Project_370_Semplicio_Akhtar/Sample_18L005768/MAPCap_I_R1.fastq.gz
+R2_path: /data/akhtar/sequencing_data/180412_J00182_0077_AHV23YBBXX_lanes1_4/Project_370_Semplicio_Akhtar/Sample_18L005768/MAPCap_I_R2.fastq.gz
+## paired-end read name
+reads: [MAPCap_I_R1, MAPCap_I_R2]
+
+expname: MAPCap
+sampleinfo: /data/processing4/jana/mapcap_pipeline/sampleInfo.tsv
+
+# Trimming
+cutadapt_path: /package/anaconda3/envs/cutadapt-1.16/bin/
+trim_options:
+trim_galore_path: /package/trim_galore_v0.4.4/
+
+# Mapping
+mapping_prg: STAR
+star_index: /data/repository/organisms/dm6_ensembl/STARIndex/
+star_path: /package/STAR-2.5.3a/bin/
+star_options:
+paired: True
+hisat_index: /data/repository/organisms/GRCh38_ensembl/HISAT2Index/genome
+subread_index: /data/processing4/jana/mapcap_pipeline/dm6_subread_index/dm6
+genes_gtf: /data/repository/organisms/dm6_ensembl/ensembl/release-79/genes.gtf
+map_spike: TRUE
+spike_index_star: /data/repository/organisms/GRCh38_ensembl/STARIndex/
+spike_index_subread: /data/processing4/jana/mapcap_pipeline/hg38_subread_index/hg38
+spikeIn_prefix: "_human"
+
+# R
+R_libs_path:  /data/processing4/R_LIB/3.5
+R_path: /package/R-3.5.0/bin
+demult: /data/processing4/jana/mapcap_pipeline/rscript/demult.R
+removedup: /data/processing4/jana/mapcap_pipeline/rscript/removeduplicate.R
+tssdetection: /data/processing4/jana/mapcap_pipeline/rscript/tssdetection.R
+tss_annotation: /data/processing4/jana/mapcap_pipeline/rscript/tss_annotation.R
+plotscripts: /data/processing4/jana/mapcap_pipeline/rscript/plotReadStats.R
+
+# TSS
+fold_change: "5"
+plotFile: "NA"
+GTFfile: "/data/processing4/jana/mapcap_pipeline/dm6_existing_annotations/dmel-all-r6.21.gtf"
+enhancer_file: "/data/processing4/jana/mapcap_pipeline/dm6_existing_annotations/starkLab_enhancers.bed"
+repeat_file: "/data/processing4/jana/mapcap_pipeline/dm6_existing_annotations/dm6_repeatPositions.bed"
+dhs_file: "NA"
