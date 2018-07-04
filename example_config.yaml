@@ -1,6 +1,5 @@
 # data
 indir: /data/akhtar/sequencing_data/180412_J00182_0077_AHV23YBBXX_lanes1_4/Project_370_Semplicio_Akhtar/Sample_18L005768
-sample: Sample_18L005768
 
 R1_path: /data/akhtar/sequencing_data/180412_J00182_0077_AHV23YBBXX_lanes1_4/Project_370_Semplicio_Akhtar/Sample_18L005768/MAPCap_I_R1.fastq.gz
 R2_path: /data/akhtar/sequencing_data/180412_J00182_0077_AHV23YBBXX_lanes1_4/Project_370_Semplicio_Akhtar/Sample_18L005768/MAPCap_I_R2.fastq.gz

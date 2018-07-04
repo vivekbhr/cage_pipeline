@@ -28,33 +28,31 @@ def multiqc_input_check(return_value):
     else:
         return(indir)
 
-groups = get_sampleinfo_info(config["sampleinfo"], 2).split()
+
+groups = get_sampleinfo_info(config["sampleinfo"], 2).split().append('merged')
 base = get_sampleinfo_info(config["sampleinfo"], 1).split()
 reads = config["reads"]
-spike_prefix = config["spikeIn_prefix"] if config["map_spike"] == True else ""
+spike_prefix = config["spikeIn_prefix"] if config["map_spike"] is True else ""
 fold_change_prefix = "tss_foldch_"+config["fold_change"]+"_" #changed after running
 
-def spike_mapping():
-    output = []
-    if config["map_spike"]:
-        output.append([expand("04_removedup{spike}/CSobject.Rdata", spike = spike_prefix),
-                      expand("04_removedup{spike}/{base}.filtered.bam", base = base, spike = spike_prefix),
-                      expand("multiQC{spike}/multiqc_report.html", spike = spike_prefix)
-                      ])
-    return(output)
 
-
-rule all:
-    input:
-        expand("04_removedup/CSobject.Rdata"),
-        expand("04_removedup/{base}.filtered.bam", base = base),
-        expand("05_bigwigs/with_duplicates/{base}.bw", base = base),
-        expand("05_bigwigs/without_duplicates/{base}.bw", base = base),
-        "06_tss_calling/CSobject.Rdata",
-        expand("07_tss_annotation/{fold_change}{group}.annotated.tsv", fold_change=fold_change_prefix, group=groups),
-        expand("08_plots/"),
-        expand("multiQC/multiqc_report.html"),
-        spike_mapping()
+if config["map_spike"]:
+    rule all:
+        input:
+            expand("04_removedup{spike}/CSobject.Rdata", spike = spike_prefix),
+            expand("04_removedup{spike}/{base}.filtered.bam", base = base, spike = spike_prefix),
+            expand("multiQC{spike}/multiqc_report.html", spike = spike_prefix)
+else:
+    rule all:
+        input:
+            expand("04_removedup/CSobject.Rdata"),
+            expand("04_removedup/{base}.filtered.bam", base = base),
+            expand("05_bigwigs/with_duplicates/{base}.bw", base = base),
+            expand("05_bigwigs/without_duplicates/{base}.bw", base = base),
+            "06_tss_calling/CSobject.Rdata",
+            expand("07_tss_annotation/{fold_change}{group}.annotated.tsv", fold_change=fold_change_prefix, group=groups),
+            expand("08_plots/"),
+            expand("multiQC/multiqc_report.html")
 
 ## FASTQ linking
 rule FASTQ:
@@ -130,29 +128,30 @@ rule demultiplex_fastq:
 
 ## MAPPING
 if config["mapping_prg"] == "subread":
-    rule subread:
-        input:
-            r1 = "02_splitting/{base}_R1.fastq.gz",
-            r2 = "02_splitting/{base}_R2.fastq.gz"
-        output:
-            "03_mapping"+spike_prefix+"/{base}.bam"
-        params:
-            gtf = lambda wildcards: "" if config["map_spike"] else "-a "+ config["genes_gtf"],
-            index = lambda wildcards: config["spike_index_subread"] if config["map_spike"] else config["subread_index"]
-        log:
-            "03_mapping{}/Logs/subread.log".format(spike_prefix)
-        threads: 15
-        shell:
-            "module load samtools && module load subread &&"
-            " subjunc -D 500 -d 20 -T {threads}"
-            " {params.gtf}"
-            " -i {params.index}"
-            " -r {input.r1}"
-            " -R {input.r2} |"
-            " samtools sort"
-            " -O BAM -@ {threads}"
-            " -o {output}"
-            " &> {log}"
+    if config["paired"]:
+        rule subread:
+            input:
+                r1 = "02_splitting/{base}_R1.fastq.gz",
+                r2 = "02_splitting/{base}_R2.fastq.gz"
+            output:
+                "03_mapping"+spike_prefix+"/{base}.bam"
+            params:
+                gtf = lambda wildcards: "" if config["map_spike"] else "-a "+ config["genes_gtf"],
+                index = lambda wildcards: config["spike_index_subread"] if config["map_spike"] else config["subread_index"]
+            log:
+                "03_mapping{}/Logs/subread.log".format(spike_prefix)
+            threads: 15
+            shell:
+                "module load samtools && module load subread &&"
+                " subjunc -D 500 -d 20 -T {threads}"
+                " {params.gtf}"
+                " -i {params.index}"
+                " -r {input.r1}"
+                " -R {input.r2} |"
+                " samtools sort"
+                " -O BAM -@ {threads}"
+                " -o {output}"
+                " &> {log}"
 
 elif config["mapping_prg"] == "STAR":
     if config["paired"]:
