@@ -41,7 +41,7 @@ if config["map_spike"]:
         input:
             expand("04_removedup{spike}/CSobject.Rdata", spike = spike_prefix),
             expand("04_removedup{spike}/{base}.filtered.bam", base = base, spike = spike_prefix),
-            expand("multiQC{spike}/multiqc_report.html", spike = spike_prefix)
+            expand("multiQC{spike}", spike = spike_prefix)
 else:
     rule all:
         input:
@@ -151,7 +151,7 @@ if config["mapping_prg"] == "subread":
                 " samtools sort"
                 " -O BAM -@ {threads}"
                 " -o {output}"
-                " &> {log}"
+                " 2> {log}"
 
 elif config["mapping_prg"] == "STAR":
     if config["paired"]:
@@ -336,7 +336,7 @@ rule multiQC:
     input:
         multiqc_input_check(return_value = "infiles")
     output:
-        "multiQC"+spike_prefix+"/multiqc_report.html"
+        "multiQC"+spike_prefix
     params:
         indirs = multiqc_input_check(return_value = "indir")
     log:
