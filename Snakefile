@@ -45,6 +45,7 @@ if config["map_spike"]:
 else:
     rule all:
         input:
+            #expand("02_splitting/fastqc/{base}_{read}_fastqc.html", base = base, read = reads)
             expand("04_removedup/CSobject.Rdata"),
             expand("04_removedup/{base}.filtered.bam", base = base),
             expand("05_bigwigs/with_duplicates/{base}.bw", base = base),
@@ -86,7 +87,7 @@ rule TrimGalore:
         "--stringency 3 "
         "{params.opts} "
         "{input.r1} {input.r2} "
-        "&> {log} "
+        "> {log} 2>&1 "
         "&& (mv {params.tmp1} {output.r1}; mv {params.tmp2} {output.r2})"
 
 ## FASTQC
@@ -101,7 +102,7 @@ rule FastQC_on_trimmed:
         "01_fastq/adaptor_trimmed/fastqc/Logs/FastQC_trimmed.{read}.log"
     threads: 2
     shell:
-        "module load FastQC && fastqc -o {params.output_dir} {input} &> {log}"
+        "module load FastQC && fastqc -o {params.output_dir} {input} > {log} 2>&1"
 
 ## DEMULTIPLEXING
 rule demultiplex_fastq:
@@ -124,7 +125,21 @@ rule demultiplex_fastq:
         "export R_LIBS_USER="+config["R_libs_path"] +
         " && "+os.path.join(config["R_path"],"Rscript") +
         " {params.rscript} {params.expname}"
-        " {input.r1} {input.r2} {input.sampleinfo} {params.outdir} {threads} &> {log}"
+        " {input.r1} {input.r2} {input.sampleinfo} {params.outdir} {threads} > {log} 2>&1"
+
+## FASTQC on demult
+rule FastQC_on_demult:
+    input:
+        "02_splitting/{base}_{read}.fastq.gz"
+    output:
+        "02_splitting/fastqc/{base}_{read}_fastqc.html"
+    params:
+        output_dir = "02_splitting/fastqc"
+    log:
+        "02_splitting/fastqc/Logs/FastQC_demult.{base}_{read}.log"
+    threads: 2
+    shell:
+        "module load FastQC && fastqc -o {params.output_dir} {input} > {log} 2>&1"
 
 ## MAPPING
 if config["mapping_prg"] == "subread":
@@ -197,7 +212,7 @@ rule bam_index:
         "03_mapping{}/Logs/bam.index.log".format(spike_prefix)
     shell:
         "module load samtools && "
-        "samtools index {input} &> {log}"
+        "samtools index {input} > {log} 2>&1"
 
 ## DUPLICATE REMOVAL
 rule remove_dup:
@@ -217,7 +232,7 @@ rule remove_dup:
     shell:
         "export R_LIBS_USER="+config["R_libs_path"]+" && "+os.path.join(config["R_path"],"Rscript")+ " {params.rscript} "
         "{params.last_cs} {params.input_dir} "
-        "{params.output_dir} {threads} &> {log}"
+        "{params.output_dir} {threads} > {log} 2>&1"
 
 ## INDEXING DUPremoved BAMs
 rule bam_index_rmdup:
@@ -229,7 +244,7 @@ rule bam_index_rmdup:
         "04_removedup{}/Logs/bam.index.log".format(spike_prefix)
     shell:
         "module load samtools && "
-        "samtools index {input} &> {log}"
+        "samtools index {input} > {log} 2>&1"
 
 ## BAMCOVERAGE
 # with dup
@@ -250,7 +265,7 @@ rule bam_coverage:
         "--Offset 1 5 "
         "--normalizeUsing CPM -p 20 -bs 1 "
         "-b {input.bam} "
-        "-o {output}  &> {log}"
+        "-o {output}  > {log} 2>&1"
 
 # without dup
 rule bam_coverage_withoutdup:
@@ -270,7 +285,7 @@ rule bam_coverage_withoutdup:
         "--Offset 1 5 "
         "--normalizeUsing CPM -p 20 -bs 1 "
         "-b {input.bam} "
-        "-o {output}  &> {log}"
+        "-o {output}  > {log} 2>&1"
 
 rule tss_calling:
     input:
@@ -291,7 +306,7 @@ rule tss_calling:
     shell:
         "export R_LIBS_USER="+config["R_libs_path"]+" && "+os.path.join(config["R_path"],"Rscript")+ " {params.rscript} "
         "{params.last_cs} {params.sampleinfo} "
-        "{params.output_dir} {threads} {params.fold_change} {params.prefix} &> {log}"
+        "{params.output_dir} {threads} {params.fold_change} {params.prefix} > {log} 2>&1"
 
 rule tss_annotation:
     input:
@@ -315,7 +330,7 @@ rule tss_annotation:
     shell:
         "export R_LIBS_USER="+config["R_libs_path"]+" && "+os.path.join(config["R_path"],"Rscript")+ " {params.rscript} "
         "{params.input_bed} {output} {params.plotFile} "
-        "{params.GTFfile} {params.enhancer_file} {params.repeat_file} {params.dhs_file} &> {log}"
+        "{params.GTFfile} {params.enhancer_file} {params.repeat_file} {params.dhs_file} > {log} 2>&1"
 
 rule plot_stats:
     input:
@@ -330,7 +345,7 @@ rule plot_stats:
         "08_plots/plots.log"
     shell:
         "export R_LIBS_USER="+config["R_libs_path"]+" && "+os.path.join(config["R_path"],"Rscript")+ " {params.rscript} "
-        "{params.last_cs} {params.prefix} &> {log}"
+        "{params.last_cs} {params.prefix} > {log} 2>&1"
 
 rule multiQC:
     input:
@@ -343,4 +358,4 @@ rule multiQC:
         "multiQC"+spike_prefix+"/multiQC.log"
     shell:
         "module load MultiQC && "
-        "multiqc -o {output} -f {params.indirs} &> {log}"
+        "multiqc -o {output} -f {params.indirs} > {log} 2>&1"
