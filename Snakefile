@@ -29,12 +29,12 @@ def multiqc_input_check(return_value):
         return(indir)
 
 
-groups = get_sampleinfo_info(config["sampleinfo"], 2).split().append('merged')
+groups = get_sampleinfo_info(config["sampleinfo"], 2).split()
+groups.append('merged')
 base = get_sampleinfo_info(config["sampleinfo"], 1).split()
 reads = config["reads"]
 spike_prefix = config["spikeIn_prefix"] if config["map_spike"] is True else ""
-fold_change_prefix = "tss_foldch_"+config["fold_change"]+"_" #changed after running
-
+fold_change_prefix = "tss_foldch_"+config["fold_change"] #changed after running
 
 if config["map_spike"]:
     rule all:
@@ -51,8 +51,8 @@ else:
             expand("05_bigwigs/with_duplicates/{base}.bw", base = base),
             expand("05_bigwigs/without_duplicates/{base}.bw", base = base),
             "06_tss_calling/CSobject.Rdata",
-            expand("07_tss_annotation/{fold_change}{group}.annotated.tsv", fold_change=fold_change_prefix, group=groups),
-            expand("08_plots/"),
+            expand("07_tss_annotation/{fold_change}_{group}.annotated.tsv", fold_change=fold_change_prefix, group=groups),
+            "08_plots/" + fold_change_prefix + "_numbers.pdf",
             expand("multiQC/multiqc_report.html")
 
 ## FASTQ linking
@@ -166,7 +166,7 @@ if config["mapping_prg"] == "subread":
                 " samtools sort"
                 " -O BAM -@ {threads}"
                 " -o {output}"
-                " 2> {log}"
+                " > {log} 2>&1"
 
 elif config["mapping_prg"] == "STAR":
     if config["paired"]:
@@ -289,12 +289,11 @@ rule bam_coverage_withoutdup:
 
 rule tss_calling:
     input:
-        "04_removedup/CSobject.Rdata"
+        last_cs = "04_removedup/CSobject.Rdata"
     output:
         outfile = "06_tss_calling/CSobject.Rdata",
-        bedfiles = expand("06_tss_calling/{foldchange}{group}.bed", foldchange=fold_change_prefix, group=groups)
+        bedfiles = expand("06_tss_calling/{foldchange}_{group}.bed", foldchange=fold_change_prefix, group=groups)
     params:
-        last_cs = "04_removedup/CSobject.Rdata",
         sampleinfo = config["sampleinfo"],
         output_dir = "06_tss_calling/",
         fold_change = config["fold_change"],
@@ -305,20 +304,18 @@ rule tss_calling:
     threads: 10
     shell:
         "export R_LIBS_USER="+config["R_libs_path"]+" && "+os.path.join(config["R_path"],"Rscript")+ " {params.rscript} "
-        "{params.last_cs} {params.sampleinfo} "
+        "{input.last_cs} {params.sampleinfo} "
         "{params.output_dir} {threads} {params.fold_change} {params.prefix} > {log} 2>&1"
 
 rule tss_annotation:
     input:
-        "06_tss_calling/CSobject.Rdata",
-        expand("06_tss_calling/{foldchange}{group}.bed", foldchange=fold_change_prefix, group=groups)
-    output:
-        "07_tss_annotation/{tss}.annotated.tsv"
-    params:
         last_cs = "06_tss_calling/CSobject.Rdata",
-        input_bed = "06_tss_calling/{tss}.bed",
-        plotFile = "07_tss_annotation/{tss}.pdf",
-        GTFfile = config["GTFfile"],
+        tssbed = "06_tss_calling/{fold_change}_{group}.bed",
+        GTFfile = config["GTFfile"]
+    output:
+        annotation = "07_tss_annotation/{fold_change}_{group}.annotated.tsv",
+        plot = "07_tss_annotation/{fold_change}_{group}.pdf"
+    params:
         enhancer_file = config["enhancer_file"],
         repeat_file = config["repeat_file"],
         dhs_file = "NA",
@@ -329,23 +326,23 @@ rule tss_annotation:
         10
     shell:
         "export R_LIBS_USER="+config["R_libs_path"]+" && "+os.path.join(config["R_path"],"Rscript")+ " {params.rscript} "
-        "{params.input_bed} {output} {params.plotFile} "
-        "{params.GTFfile} {params.enhancer_file} {params.repeat_file} {params.dhs_file} > {log} 2>&1"
+        "{input.tssbed} {output.annotation} {output.plot} "
+        "{input.GTFfile} {params.enhancer_file} {params.repeat_file} {params.dhs_file} > {log} 2>&1"
 
 rule plot_stats:
     input:
-        "06_tss_calling/CSobject.Rdata"
-    output:
-        "08_plots/"
-    params:
-        prefix = "08_plots/tss_foldch_{}".format(config["fold_change"]),
-        rscript = config["plotscripts"],
         last_cs = "06_tss_calling/CSobject.Rdata"
+    output:
+        nums = "08_plots/" + fold_change_prefix + "_numbers.pdf",
+        props = "08_plots/" + fold_change_prefix + "_proportions.pdf"
+    params:
+        prefix = "08_plots/" + fold_change_prefix,
+        rscript = config["plotscripts"]
     log:
         "08_plots/plots.log"
     shell:
-        "export R_LIBS_USER="+config["R_libs_path"]+" && "+os.path.join(config["R_path"],"Rscript")+ " {params.rscript} "
-        "{params.last_cs} {params.prefix} > {log} 2>&1"
+        "export R_LIBS_USER="+config["R_libs_path"]+" && "+os.path.join(config["R_path"],"Rscript") +
+        " {params.rscript} {input.last_cs} {params.prefix} > {log} 2>&1"
 
 rule multiQC:
     input:
