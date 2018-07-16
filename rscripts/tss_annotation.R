@@ -134,4 +134,5 @@ if (!is.na(plotFile)) {
     ggsave(filename = plotFile)
 }
 
-write.table(as.matrix(final_annot), file = outfile, sep = "\t", row.names = FALSE, quote = FALSE)
+names(final_annot) <- paste0("TSS_", seq_along(nrow(final_annot)))
+write.table(as.data.frame(final_annot), file = outfile, sep = "\t", row.names = FALSE, quote = FALSE)
