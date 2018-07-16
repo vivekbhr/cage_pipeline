@@ -61,7 +61,7 @@ names(annoFeatures) <- flist
 external_annotations <- list(enhancers = import.bed(enhancer_file),
                              repeats = import.bed(repeat_file))
 
-if (!(is.na(dhs_bed))) external_annotations$dhs = import.bed(dhs_file)
+if (!(is.na(dhs_file))) external_annotations$dhs = import.bed(dhs_file)
 
 ## bed file to annotate
 bed <- import.bed(input_bed)
