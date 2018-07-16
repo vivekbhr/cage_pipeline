@@ -48,20 +48,20 @@ repeat_file <- Args[6]
 dhs_file <- NA
 
 # get Genic annotations
-flist <- c("TSS", "fiveUTRs", "CDS", "threeUTRs", "introns", 
+flist <- c("TSS", "fiveUTRs", "CDS", "threeUTRs", "introns",
            "antisense_threeUTRs", "antisense_fiveUTRs", "antisense_transcript", "intergenic")
 annoFeatures <- lapply(flist, function(f) {
     print(f)
-    path = file.path(annotation_folder, paste0(f, ".bed")) 
+    path = file.path(annotation_folder, paste0(f, ".bed"))
     return(import.bed(path))
 })
 names(annoFeatures) <- flist
 
 ## get External annotations
-external_annotations <- list(enhancers = import.bed(enhancer_bed),
-                             repeats = import.bed(repeats_bed))
+external_annotations <- list(enhancers = import.bed(enhancer_file),
+                             repeats = import.bed(repeat_file))
 
-if (!(is.na(dhs_bed))) external_annotations$dhs = import.bed(dhs_bed)
+if (!(is.na(dhs_bed))) external_annotations$dhs = import.bed(dhs_file)
 
 ## bed file to annotate
 bed <- import.bed(input_bed)
@@ -78,7 +78,7 @@ annotateAndSubset <- function(bed, feature) {
 }
 
 ## STEP 1 : GENIC ANNOTATION
-# annotate in a loop 
+# annotate in a loop
 all_annotations <- list()
 b <- bed
 for (f in names(annoFeatures) ) {
@@ -88,33 +88,33 @@ for (f in names(annoFeatures) ) {
     b <- ann$non_overlapping
 }
 
-# leftOver entries 
+# leftOver entries
 b$LOCATION <- "None"
 all_annotations$None <- b
 ## convert to GR
 all_annotations <- GRangesList(all_annotations) %>% unlist()
 
 ## STEP 2 : EXTERNAL ANNOTATIONS
-# annotate in a loop 
+# annotate in a loop
 all_annotations_step2 <- list()
 b <- all_annotations
 for (f in names(external_annotations) ) {
     ann <- annotateAndSubset(bed = b, feature = external_annotations[[f]])
-    
+
     if(length(ann$overlapping) != 0) {
         ann$overlapping$LOCATION <- paste(ann$overlapping$LOCATION, f, sep = "-")
         all_annotations_step2[[f]] <- ann$overlapping
         b <- ann$non_overlapping
-    } 
+    }
 }
 
-# leftOver entries 
+# leftOver entries
 all_annotations_step2$None <- b
 ## convert to GR
 all_annotations_step2 <- GRangesList(all_annotations_step2) %>% unlist()
 
 ### make final
-### 
+###
 final_annot <- all_annotations_step2
 print(table(final_annot$LOCATION))
 if (!is.na(plotFile)) {
@@ -123,7 +123,7 @@ if (!is.na(plotFile)) {
     df$percent <- (df$number/sum(df$number))*100
     df$feature <- factor(df$feature, levels = df[order(df$number), "feature"])
     max_number <- round(max(df$number), -1)
-    
+
     ggplot(df, aes(feature, number, fill = "feature")) +
         geom_bar(stat = "identity") +
         scale_fill_brewer(type = "qual") +
@@ -135,5 +135,3 @@ if (!is.na(plotFile)) {
 }
 
 write.table(as.matrix(final_annot), file = outfile, sep = "\t", row.names = FALSE, quote = FALSE)
-
-
