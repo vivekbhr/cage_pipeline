@@ -33,6 +33,9 @@ groups = get_sampleinfo_info(config["sampleinfo"], 2).split()
 groups.append('merged')
 base = get_sampleinfo_info(config["sampleinfo"], 1).split()
 reads = config["reads"]
+#sample = config["sample"]
+#print(base)
+
 spike_prefix = config["spikeIn_prefix"] if config["map_spike"] is True else ""
 fold_change_prefix = "tss_foldch_"+config["fold_change"] #changed after running
 
@@ -45,7 +48,10 @@ if config["map_spike"]:
 else:
     rule all:
         input:
-            #expand("02_splitting/fastqc/{base}_{read}_fastqc.html", base = base, read = reads)
+            #expand("01_fastq/raw/{sample}{read}.fastq.gz", sample = sample, read = reads),
+            #expand("01_fastq/adaptor_trimmed/{sample}{read}.fastq.gz", sample = sample, read = reads),
+            #expand("01_fastq/adaptor_trimmed/fastqc/{sample}{read}_fastqc.html", sample = sample, read = reads),
+            #expand("02_splitting/fastqc/{base}{read}_fastqc.html", base = base, read = ['_R1', '_R2']),
             expand("04_removedup/CSobject.Rdata"),
             expand("04_removedup/{base}.filtered.bam", base = base),
             expand("05_bigwigs/with_duplicates/{base}.bw", base = base),
@@ -53,7 +59,7 @@ else:
             "06_tss_calling/CSobject.Rdata",
             expand("07_tss_annotation/{fold_change}_{group}.annotated.tsv", fold_change=fold_change_prefix, group=groups),
             "08_plots/" + fold_change_prefix + "_numbers.pdf",
-            expand("multiQC/multiqc_report.html")
+            "multiQC/multiqc_report.html"
 
 ## FASTQ linking
 rule FASTQ:
@@ -209,7 +215,7 @@ rule bam_index:
     output:
         "03_mapping"+spike_prefix+"/{base}.bam.bai"
     log:
-        "03_mapping{}/Logs/bam.index.log".format(spike_prefix)
+        "03_mapping"+spike_prefix+"/Logs/{base}.index.log"
     shell:
         "module load samtools && "
         "samtools index {input} > {log} 2>&1"
@@ -240,11 +246,9 @@ rule bam_index_rmdup:
         "04_removedup"+spike_prefix+"/{base}.filtered.bam"
     output:
         "04_removedup"+spike_prefix+"/{base}.filtered.bam.bai"
-    log:
-        "04_removedup{}/Logs/bam.index.log".format(spike_prefix)
     shell:
         "module load samtools && "
-        "samtools index {input} > {log} 2>&1"
+        "samtools index {input} "
 
 ## BAMCOVERAGE
 # with dup
@@ -255,9 +259,7 @@ rule bam_coverage:
     output:
         "05_bigwigs/with_duplicates/{base}.bw"
     log:
-        "05_bigwigs/with_duplicates/Logs/bam.coverage.log"
-    benchmark:
-        "05_bigwigs/with_duplicates/Logs/bam.coverage.benchmark"
+        "05_bigwigs/with_duplicates/Logs/{base}.bamCoverage.log"
     threads: 20
     shell:
         "module load deeptools/3.0.2 && "
@@ -275,9 +277,7 @@ rule bam_coverage_withoutdup:
     output:
         "05_bigwigs/without_duplicates/{base}.bw"
     log:
-        "05_bigwigs/without_duplicates/Logs/bam.coverage.log"
-    benchmark:
-        "05_bigwigs/without_duplicates/Logs/bam.coverage.benchmark"
+        "05_bigwigs/without_duplicates/Logs/{base}.bamCoverage.log"
     threads: 20
     shell:
         "module load deeptools/3.0.2 && "
@@ -321,7 +321,7 @@ rule tss_annotation:
         dhs_file = "NA",
         rscript = config["tss_annotation"]
     log:
-        "07_tss_annotation/tss.log"
+        "07_tss_annotation/{fold_change}_{group}.annotation.log"
     threads:
         10
     shell:
@@ -348,7 +348,7 @@ rule multiQC:
     input:
         multiqc_input_check(return_value = "infiles")
     output:
-        "multiQC"+spike_prefix
+        "multiQC"+spike_prefix+"/multiqc_report.html"
     params:
         indirs = multiqc_input_check(return_value = "indir")
     log:
