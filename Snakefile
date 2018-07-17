@@ -119,7 +119,7 @@ if config["mapping_prg"] == "subread":
                 gtf = lambda wildcards: "" if config["map_spike"] else "-a "+ config["genes_gtf"],
                 index = lambda wildcards: config["spike_index_subread"] if config["map_spike"] else config["subread_index"]
             log:
-                "03_mapping{}/Logs/subread.log".format(spike_prefix)
+                "03_mapping"+spike_prefix+"/Logs/{base}.subread.log"
             threads: 15
             shell:
                 "module load samtools && module load subread &&"
@@ -147,8 +147,6 @@ elif config["mapping_prg"] == "STAR":
                 index = lambda wildcards: config["spike_index_star"] if config["map_spike"] else config["star_index"],
                 sample_dir = "03_mapping"+spike_prefix+"/{base}",
                 prefix = "03_mapping"+spike_prefix+"/{base}/{base}."
-            benchmark:
-                "03_mapping"+spike_prefix+"/.benchmark/STAR.{base}.benchmark"
             threads: 12
             shell:
                 "( [ -d {params.sample_dir} ] || mkdir -p {params.sample_dir} ) &&"
