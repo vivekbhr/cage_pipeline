@@ -28,13 +28,10 @@ def multiqc_input_check(return_value):
     else:
         return(indir)
 
-
 groups = get_sampleinfo_info(config["sampleinfo"], 2).split()
 groups.append('merged')
 base = get_sampleinfo_info(config["sampleinfo"], 1).split()
 reads = config["reads"]
-#sample = config["sample"]
-#print(base)
 
 spike_prefix = config["spikeIn_prefix"] if config["map_spike"] is True else ""
 fold_change_prefix = "tss_foldch_"+config["fold_change"] #changed after running
@@ -44,14 +41,10 @@ if config["map_spike"]:
         input:
             expand("04_removedup{spike}/CSobject.Rdata", spike = spike_prefix),
             expand("04_removedup{spike}/{base}.filtered.bam", base = base, spike = spike_prefix),
-            expand("multiQC{spike}", spike = spike_prefix)
+            expand("09_multiQC{spike}", spike = spike_prefix)
 else:
     rule all:
         input:
-            #expand("01_fastq/raw/{sample}{read}.fastq.gz", sample = sample, read = reads),
-            #expand("01_fastq/adaptor_trimmed/{sample}{read}.fastq.gz", sample = sample, read = reads),
-            #expand("01_fastq/adaptor_trimmed/fastqc/{sample}{read}_fastqc.html", sample = sample, read = reads),
-            #expand("02_splitting/fastqc/{base}{read}_fastqc.html", base = base, read = ['_R1', '_R2']),
             expand("04_removedup/CSobject.Rdata"),
             expand("04_removedup/{base}.filtered.bam", base = base),
             expand("05_bigwigs/with_duplicates/{base}.bw", base = base),
@@ -59,7 +52,7 @@ else:
             "06_tss_calling/CSobject.Rdata",
             expand("07_tss_annotation/{fold_change}_{group}.annotated.tsv", fold_change=fold_change_prefix, group=groups),
             "08_plots/" + fold_change_prefix + "_numbers.pdf",
-            "multiQC/multiqc_report.html"
+            "09_multiQC/multiqc_report.html"
 
 ## FASTQ linking
 rule FASTQ:
@@ -105,7 +98,7 @@ rule FastQC_on_trimmed:
     params:
         output_dir = "01_fastq/adaptor_trimmed/fastqc"
     log:
-        "01_fastq/adaptor_trimmed/fastqc/Logs/FastQC_trimmed.{read}.log"
+        "01_fastq/adaptor_trimmed/fastqc/Logs/{read}.log"
     threads: 2
     shell:
         "module load FastQC && fastqc -o {params.output_dir} {input} > {log} 2>&1"
@@ -307,15 +300,29 @@ rule tss_calling:
         "{input.last_cs} {params.sampleinfo} "
         "{params.output_dir} {threads} {params.fold_change} {params.prefix} > {log} 2>&1"
 
+rule prepare_annotations:
+    input:
+        config["GTFfile"]
+    output:
+        config["knownAnnotations"] + "/antisense_promoters.bed"# one of the many written files
+    params:
+        rscript = config["make_annotations"],
+        annotation_folder = config["knownAnnotations"]
+    log:
+        config["knownAnnotations"] + "/prepare_annotations.log"
+    shell:
+        "export R_LIBS_USER="+config["R_libs_path"]+" && "+os.path.join(config["R_path"],"Rscript") +
+        " {params.rscript} {input} {params.annotation_folder}"
+
 rule tss_annotation:
     input:
         last_cs = "06_tss_calling/CSobject.Rdata",
-        tssbed = "06_tss_calling/{fold_change}_{group}.bed",
-        GTFfile = config["GTFfile"]
+        tssbed = "06_tss_calling/{fold_change}_{group}.bed"
     output:
         annotation = "07_tss_annotation/{fold_change}_{group}.annotated.tsv",
         plot = "07_tss_annotation/{fold_change}_{group}.pdf"
     params:
+        annotation_folder = config["knownAnnotations"],
         enhancer_file = config["enhancer_file"],
         repeat_file = config["repeat_file"],
         dhs_file = "NA",
@@ -325,9 +332,9 @@ rule tss_annotation:
     threads:
         10
     shell:
-        "export R_LIBS_USER="+config["R_libs_path"]+" && "+os.path.join(config["R_path"],"Rscript")+ " {params.rscript} "
+        "export R_LIBS_USER="+config["R_libs_path"]+" && "+os.path.join(config["R_path"],"Rscript") + " {params.rscript} "
         "{input.tssbed} {output.annotation} {output.plot} "
-        "{input.GTFfile} {params.enhancer_file} {params.repeat_file} {params.dhs_file} > {log} 2>&1"
+        "{params.annotation_folder} {params.enhancer_file} {params.repeat_file} {params.dhs_file} > {log} 2>&1"
 
 rule plot_stats:
     input:
@@ -348,11 +355,12 @@ rule multiQC:
     input:
         multiqc_input_check(return_value = "infiles")
     output:
-        "multiQC"+spike_prefix+"/multiqc_report.html"
+        "09_multiQC"+spike_prefix+"/multiqc_report.html"
     params:
-        indirs = multiqc_input_check(return_value = "indir")
+        indirs = multiqc_input_check(return_value = "indir"),
+        outdir = "09_multiQC"+spike_prefix
     log:
-        "multiQC"+spike_prefix+"/multiQC.log"
+        "09_multiQC"+spike_prefix+"/multiQC.log"
     shell:
         "module load MultiQC && "
-        "multiqc -o {output} -f {params.indirs} > {log} 2>&1"
+        "multiqc -o {params.outdir} -f {params.indirs} > {log} 2>&1"

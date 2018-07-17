@@ -1,6 +1,5 @@
 # load the package
 library(GenomicFeatures)
-library(VariantAnnotation)
 library(rtracklayer)
 library(magrittr)
 library(ggplot2)
