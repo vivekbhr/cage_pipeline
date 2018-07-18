@@ -7,7 +7,7 @@ if config["map_spike"]:
         input:
             expand("04_removedup{spike}/CSobject.Rdata", spike = spike_prefix),
             expand("04_removedup{spike}/{base}.filtered.bam", base = base, spike = spike_prefix),
-            expand("09_multiQC{spike}", spike = spike_prefix)
+            expand("09_multiQC{spike}/multiqc_report.html", spike = spike_prefix)
 else:
     rule all:
         input:
