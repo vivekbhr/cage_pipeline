@@ -129,7 +129,7 @@ if (!is.na(plotFile)) {
         scale_y_continuous(breaks = seq(0, max_number, max_number/10)) +
         coord_flip() +
         theme_bw(base_size = 16) +
-        theme(legend.position = "none")
+        theme(legend.position = "none", axis.text.x = element_text(angle = 60, vjust = 0.5))
     ggsave(filename = plotFile)
 }
 
